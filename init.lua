@@ -1,0 +1,528 @@
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "--branch=stable",
+    "https://github.com/folke/lazy.nvim.git",
+    lazypath,
+  })
+end
+
+vim.opt.rtp:prepend(lazypath)
+
+local lsp_executables = {
+  basedpyright = "basedpyright-langserver",
+  ruff = "ruff",
+  ts_ls = "typescript-language-server",
+  lua_ls = "lua-language-server",
+  html = "vscode-html-language-server",
+  cssls = "vscode-css-language-server",
+  jdtls = "jdtls",
+}
+local lsp_servers = { "basedpyright", "ruff", "ts_ls", "lua_ls", "html", "cssls" }
+
+-- Use NVIM_EVANGELION=0 nvim para abrir com a interface original do Tokyo Night.
+local use_evangelion = vim.env.NVIM_EVANGELION ~= "0"
+local evangelion = require("theme.evangelion")
+
+require("lazy").setup({
+
+{
+    "folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {
+        style = "moon",
+        transparent = false,
+        on_highlights = use_evangelion and evangelion.on_highlights or nil,
+        styles = {
+            comments = { italic = true },
+            keywords = { italic = true },
+            sidebars = "dark",
+            floats = "dark",
+        },
+    },
+    config = function(_, opts)
+        require("tokyonight").setup(opts)
+        vim.cmd([[colorscheme tokyonight]])
+    end,
+},
+
+{
+    "goolord/alpha-nvim",
+    lazy = false,
+    config = function()
+        require("dashboard").setup()
+    end,
+},
+
+{
+  "nvim-treesitter/nvim-treesitter",
+  build = ":TSUpdate",
+  config = function()
+    local ts = require("nvim-treesitter")
+    local languages = { "java", "python", "lua", "vim", "vimdoc", "query", "html", "css", "javascript", "typescript" }
+    ts.setup({})
+    ts.install(languages)
+
+    local filetypes = {}
+    for _, language in ipairs(languages) do
+      vim.list_extend(filetypes, vim.treesitter.language.get_filetypes(language))
+    end
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = filetypes,
+      callback = function(event)
+        local lang = vim.treesitter.language.get_lang(vim.bo[event.buf].filetype)
+        if vim.treesitter.language.add(lang) then
+          vim.treesitter.start(event.buf, lang)
+          vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+      end,
+    })
+  end,
+},
+
+{
+  "nvim-tree/nvim-tree.lua",
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+  },
+  config = function()
+    require("nvim-tree").setup()
+  end,
+},
+
+{
+  "zbirenbaum/copilot.lua",
+  cmd = "Copilot",
+  event = "InsertEnter",
+
+  config = function()
+    require("copilot").setup({
+      suggestion = {
+        enabled = true,
+        auto_trigger = true,
+
+        keymap = {
+          accept = "<C-j>", -- Ctrl+j
+          next = "<C-l>",   -- próxima sugestão
+          prev = "<C-h>",   -- sugestão anterior
+          dismiss = "<C-e>", -- dispensar sugestão
+        },
+      },
+    })
+  end,
+},
+
+  {
+    "windwp/nvim-autopairs",
+    config = function()
+      require("nvim-autopairs").setup({})
+    end,
+  },
+
+{
+  'akinsho/bufferline.nvim',
+  version = "*",
+  dependencies = 'nvim-tree/nvim-web-devicons',
+  config = function()
+    require("bufferline").setup({ highlights = use_evangelion and evangelion.bufferline() or nil })
+  end
+},
+
+{
+  "nvim-lualine/lualine.nvim",
+  cond = use_evangelion,
+  event = "VeryLazy",
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+    { "xero/evangelion.nvim", lazy = false, priority = 1000 },
+  },
+  opts = {
+    options = {
+      theme = "evangelion",
+      component_separators = { left = "░", right = "░" },
+      section_separators = { left = "▓▒░", right = "░▒▓" },
+      disabled_filetypes = { statusline = { "alpha" } },
+    },
+    sections = {
+      lualine_b = {
+        "branch",
+        {
+          "diagnostics",
+          sources = { "nvim_diagnostic" },
+          symbols = { error = " ", warn = " ", info = " " },
+          diagnostics_color = {
+            error = { fg = "#151515" },
+            warn = { fg = "#151515" },
+            info = { fg = "#151515" },
+          },
+        },
+      },
+      lualine_x = {
+        { "encoding", padding = { left = 1, right = 1 }, separator = { left = "░▒▓" } },
+        { "fileformat" },
+        { "filetype" },
+      },
+      lualine_y = { "searchcount", "progress" },
+    },
+  },
+},
+
+{
+  "lukas-reineke/indent-blankline.nvim",
+  main = "ibl",
+  config = function()
+    require("ibl").setup({
+      indent = { char = "▏" }, -- Define o caractere fino da barra vertical
+    })
+  end
+},
+
+
+  {
+    "numToStr/Comment.nvim",
+    config = function()
+      require("Comment").setup()
+    end,
+  },
+
+  {
+    "mattn/emmet-vim",
+    ft = {
+      "html",
+      "css",
+      "javascript",
+      "javascriptreact",
+      "typescriptreact",
+    },
+  },
+
+  
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+    },
+  },
+
+  {
+    "lewis6991/gitsigns.nvim",
+    config = function()
+      require("gitsigns").setup()
+    end,
+  },
+
+  {
+  "L3MON4D3/LuaSnip",
+  dependencies = {
+    "rafamadriz/friendly-snippets",
+  },
+
+  config = function()
+    require("luasnip.loaders.from_vscode").lazy_load()
+
+    require("luasnip.loaders.from_lua").load({
+      paths = vim.fn.stdpath("config") .. "/lua/snippets",
+    })
+  end,
+},
+
+  {
+    "hrsh7th/nvim-cmp",
+    dependencies = {
+      "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-path",
+      "hrsh7th/cmp-nvim-lsp",
+      "saadparwaiz1/cmp_luasnip",
+      "L3MON4D3/LuaSnip",
+      "onsails/lspkind.nvim",
+    },
+
+    config = function()
+      local cmp = require("cmp")
+      local luasnip = require("luasnip")
+      local source_labels = {
+        nvim_lsp = "LSP",
+        luasnip = "LuaSnip",
+        buffer = "Buffer",
+        path = "Path",
+      }
+
+      cmp.setup({
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end,
+        },
+
+        mapping = cmp.mapping.preset.insert({
+          ["<C-Space>"] = cmp.mapping.complete(),
+          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+          ["<C-b>"] = cmp.mapping.scroll_docs(-4),
+          ["<C-f>"] = cmp.mapping.scroll_docs(4),
+
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+        }),
+
+        formatting = {
+          -- O nvim-cmp preenche a coluna icon com o mapa do lspkind.
+          fields = { "icon", "abbr", "kind", "menu" },
+          format = function(entry, item)
+            local source = entry.source.name
+            local label = ("[%s]"):format(source_labels[source] or source)
+            item.menu = item.menu and item.menu ~= "" and (label .. " " .. item.menu) or label
+            return item
+          end,
+        },
+
+        window = {
+          completion = {
+            border = "rounded",
+            max_height = 10,
+            scrollbar = true,
+            winhighlight = "Normal:Pmenu,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
+          },
+          documentation = {
+            border = "rounded",
+            winhighlight = "Normal:CmpDocumentation,FloatBorder:CmpDocumentationBorder",
+          },
+        },
+
+        view = { docs = { auto_open = true } },
+
+        sources = {
+          { name = "nvim_lsp" },
+          { name = "luasnip" },
+          { name = "buffer" },
+          { name = "path" },
+        },
+      })
+    end,
+  },
+
+  -- LSP: capacidades do nvim-cmp, servidores e instalação pelo Mason.
+  {
+    "neovim/nvim-lspconfig",
+    dependencies = { "hrsh7th/cmp-nvim-lsp" },
+    config = function()
+      vim.lsp.config("*", { capabilities = require("cmp_nvim_lsp").default_capabilities() })
+
+      -- Basedpyright analisa tipos. Ruff formata, faz lint e organiza imports.
+      vim.lsp.config("basedpyright", {
+        root_markers = {
+          {
+            "pyrightconfig.json", "pyproject.toml", "setup.py", "setup.cfg",
+            "requirements.txt", "Pipfile", "manage.py", ".venv",
+          },
+          ".git",
+        },
+        before_init = function(_, config)
+          if not config.root_dir then
+            return
+          end
+
+          local python = vim.fs.joinpath(config.root_dir, ".venv", "bin", "python")
+          if vim.fn.executable(python) == 1 then
+            config.settings.python = config.settings.python or {}
+            config.settings.python.pythonPath = python
+          end
+        end,
+        settings = {
+          basedpyright = {
+            disableOrganizeImports = true,
+            analysis = { typeCheckingMode = "standard" },
+          },
+        },
+      })
+      vim.lsp.config("ruff", {
+        on_attach = function(client)
+          client.server_capabilities.hoverProvider = false
+        end,
+      })
+      vim.lsp.config("lua_ls", {
+        settings = {
+          Lua = { diagnostics = { globals = { "vim" } } },
+        },
+      })
+      vim.lsp.enable(lsp_servers)
+    end,
+  },
+  {
+    "mason-org/mason-lspconfig.nvim",
+    version = "^2.0.0",
+    dependencies = {
+      { "mason-org/mason.nvim", version = "^2.0.0", opts = { PATH = "append" } },
+      "neovim/nvim-lspconfig",
+    },
+    config = function()
+      local missing = {}
+      for server, executable in pairs(lsp_executables) do
+        if vim.fn.executable(executable) == 0 then
+          table.insert(missing, server)
+        end
+      end
+      require("mason-lspconfig").setup({
+        ensure_installed = missing,
+        automatic_enable = lsp_servers,
+      })
+    end,
+  },
+  {
+    "mfussenegger/nvim-jdtls",
+    lazy = true,
+  },
+})
+
+
+-- Opções globais
+vim.opt.termguicolors = true -- 👈 ADICIONADO: Habilita cores reais de 24 bits no terminal
+vim.opt.number = true
+vim.opt.relativenumber = true
+
+-- Atalhos de teclado
+vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>")
+vim.keymap.set("n", "<leader>ff", ":Telescope find_files<CR>")
+vim.keymap.set("n", "<C-p>", "<cmd>Telescope find_files<CR>", { desc = "Buscar arquivos" })
+vim.keymap.set("n", "<leader>fg", ":Telescope live_grep<CR>")
+vim.keymap.set("n", "<S-h>", ":BufferLineCyclePrev<CR>", { desc = "Aba anterior" })
+vim.keymap.set("n", "<S-l>", ":BufferLineCycleNext<CR>", { desc = "Próxima aba" })
+vim.keymap.set("i", "jk", "<Esc>")
+vim.keymap.set("t", "jk", [[<C-\><C-n>]], { desc = "Sair do terminal" })
+
+-- Java: uma instância e um diretório de dados por projeto.
+local lsp_group = vim.api.nvim_create_augroup("ConfigLsp", { clear = true })
+vim.api.nvim_create_autocmd("FileType", {
+  group = lsp_group,
+  pattern = "java",
+  callback = function(event)
+    -- Mantém os módulos de um mesmo build Gradle/Liferay na raiz agregadora.
+    local root = vim.fs.root(event.buf, { "settings.gradle", "settings.gradle.kts", "liferay.workspace.properties" })
+      or vim.fs.root(event.buf, { "mvnw", ".mvn" })
+      or vim.fs.root(event.buf, { "pom.xml", "build.gradle", "build.gradle.kts", "gradlew" })
+      or vim.fs.root(event.buf, ".git")
+
+    if not root then
+      return
+    end
+
+    root = vim.uv.fs_realpath(root) or root
+    local workspace = vim.fn.stdpath("cache") .. "/jdtls/" .. vim.fn.sha256(root)
+    local launcher = vim.fn.exepath("jdtls")
+    if launcher == "" then
+      -- Reaproveita o Eclipse JDT LS da extensão Java, se disponível.
+      local bundled = vim.fn.glob("~/.vscode/extensions/redhat.java-*/server/bin/jdtls", false, true)
+      for _, candidate in ipairs(bundled) do
+        if vim.fn.executable(candidate) == 1 then
+          launcher = candidate
+          break
+        end
+      end
+    end
+    if launcher == "" then
+      return
+    end
+
+    local cmd = { launcher, "-data", workspace, "-configuration", workspace .. "/configuration" }
+    -- O JDT LS atual precisa de Java 25. Usa o runtime da extensão quando disponível.
+    local runtimes = vim.fn.glob("~/.vscode/extensions/redhat.java-*/jre/25*/bin/java", false, true)
+    for _, java in ipairs(runtimes) do
+      if vim.fn.executable(java) == 1 then
+        vim.list_extend(cmd, { "--java-executable", java })
+        break
+      end
+    end
+
+    local config = {
+      name = "jdtls",
+      cmd = cmd,
+      root_dir = root,
+      capabilities = require("cmp_nvim_lsp").default_capabilities(),
+    }
+    local loaded, jdtls = pcall(require, "jdtls")
+    if loaded then
+      jdtls.start_or_attach(config)
+    else
+      vim.lsp.start(config, { bufnr = event.buf })
+    end
+  end,
+})
+
+-- Atalhos locais do LSP. As buscas do Telescope continuam em <leader>ff e <leader>fg.
+-- [d e ]d já são atalhos nativos de diagnóstico no Neovim 0.11+.
+vim.api.nvim_create_autocmd("LspAttach", {
+  group = lsp_group,
+  callback = function(event)
+    local function map(lhs, rhs, desc)
+      vim.keymap.set("n", lhs, rhs, { buffer = event.buf, desc = desc })
+    end
+
+    map("gd", vim.lsp.buf.definition, "LSP: definição")
+    map("gD", vim.lsp.buf.declaration, "LSP: declaração")
+    map("gi", vim.lsp.buf.implementation, "LSP: implementação")
+    map("K", vim.lsp.buf.hover, "LSP: documentação")
+    map("<leader>rn", vim.lsp.buf.rename, "LSP: renomear")
+    map("<leader>ca", vim.lsp.buf.code_action, "LSP: ações de código")
+    map("<leader>d", vim.diagnostic.open_float, "LSP: diagnóstico")
+    map("<leader>lf", function()
+      vim.lsp.buf.format({
+        bufnr = event.buf,
+        filter = function(client)
+          return vim.bo[event.buf].filetype ~= "python" or client.name == "ruff"
+        end,
+      })
+    end, "LSP: formatar")
+  end,
+})
+
+-- 1. Força o Neovim a ignorar as cores apagadas injetadas pelo Servidor LSP (Java jdtls)
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client then
+      client.server_capabilities.semanticTokensProvider = nil
+    end
+  end,
+})
+
+-- 2. Mapeia os elementos do Tree-sitter Java diretamente para os grupos vibrantes do Dracula
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "java",
+  callback = function()
+    -- Classes e Tipos Complexos (ex: DocumentFolderResource) -> Ciano / Verde Água (Dracula Cyan)
+    vim.api.nvim_set_hl(0, "@type.java", { link = "StorageClass" })
+    vim.api.nvim_set_hl(0, "@type.definition.java", { link = "StorageClass" })
+
+    -- Chamadas de Métodos (ex: .builder(), .authentication()) -> Verde Vivo (Dracula Green / Function)
+    vim.api.nvim_set_hl(0, "@function.method.call.java", { link = "Function" })
+    vim.api.nvim_set_hl(0, "@method.call.java", { link = "Function" })
+    
+    -- Anotações (ex: @Override ou @Autowired se houver) -> Rosa/Roxo (Dracula Pink)
+    vim.api.nvim_set_hl(0, "@attribute.java", { link = "PreProc" })
+
+    -- Variáveis e Atributos locais -> Azul Claro / Branco Vibrante (Dracula Orange/Light Blue)
+    vim.api.nvim_set_hl(0, "@variable.member.java", { link = "Identifier" })
+    vim.api.nvim_set_hl(0, "@property.java", { link = "Identifier" })
+  end,
+})

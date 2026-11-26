@@ -1,0 +1,288 @@
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "--branch=stable",
+    "https://github.com/folke/lazy.nvim.git",
+    lazypath,
+  })
+end
+
+vim.opt.rtp:prepend(lazypath)
+
+require("lazy").setup({
+
+{
+    "folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {
+        style = "moon",
+        transparent = false,
+        styles = {
+            comments = { italic = true },
+            keywords = { italic = true },
+            sidebars = "dark",
+            floats = "dark",
+        },
+    },
+    config = function(_, opts)
+        require("tokyonight").setup(opts)
+        vim.cmd([[colorscheme tokyonight]])
+    end,
+},
+
+{
+  "nvim-treesitter/nvim-treesitter",
+  build = ":TSUpdate",
+  config = function()
+    local ts = require("nvim-treesitter")
+    local languages = { "java", "python", "lua", "vim", "vimdoc", "query", "html", "css", "javascript", "typescript" }
+    ts.setup({})
+    ts.install(languages)
+
+    local filetypes = {}
+    for _, language in ipairs(languages) do
+      vim.list_extend(filetypes, vim.treesitter.language.get_filetypes(language))
+    end
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = filetypes,
+      callback = function(event)
+        local lang = vim.treesitter.language.get_lang(vim.bo[event.buf].filetype)
+        if vim.treesitter.language.add(lang) then
+          vim.treesitter.start(event.buf, lang)
+          vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+      end,
+    })
+  end,
+},
+
+{
+  "nvim-tree/nvim-tree.lua",
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+  },
+  config = function()
+    require("nvim-tree").setup()
+  end,
+},
+
+{
+  "zbirenbaum/copilot.lua",
+  cmd = "Copilot",
+  event = "InsertEnter",
+
+  config = function()
+    require("copilot").setup({
+      suggestion = {
+        enabled = true,
+        auto_trigger = true,
+
+        keymap = {
+          accept = "<C-j>", -- Ctrl+j
+          next = "<C-l>",   -- próxima sugestão
+          prev = "<C-h>",   -- sugestão anterior
+          dismiss = "<C-e>", -- dispensar sugestão
+        },
+      },
+    })
+  end,
+},
+
+  {
+    "windwp/nvim-autopairs",
+    config = function()
+      require("nvim-autopairs").setup({})
+    end,
+  },
+
+{
+  'akinsho/bufferline.nvim',
+  version = "*",
+  dependencies = 'nvim-tree/nvim-web-devicons',
+  config = function()
+    require("bufferline").setup({})
+  end
+},
+
+{
+  "lukas-reineke/indent-blankline.nvim",
+  main = "ibl",
+  config = function()
+    require("ibl").setup({
+      indent = { char = "▏" }, -- Define o caractere fino da barra vertical
+    })
+  end
+},
+
+
+  {
+    "numToStr/Comment.nvim",
+    config = function()
+      require("Comment").setup()
+    end,
+  },
+
+  {
+    "mattn/emmet-vim",
+    ft = {
+      "html",
+      "css",
+      "javascript",
+      "javascriptreact",
+      "typescriptreact",
+    },
+  },
+
+  
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+    },
+  },
+
+  {
+    "lewis6991/gitsigns.nvim",
+    config = function()
+      require("gitsigns").setup()
+    end,
+  },
+
+  {
+  "L3MON4D3/LuaSnip",
+  dependencies = {
+    "rafamadriz/friendly-snippets",
+  },
+
+  config = function()
+    require("luasnip.loaders.from_vscode").lazy_load()
+
+    require("luasnip.loaders.from_lua").load({
+      paths = vim.fn.stdpath("config") .. "/lua/snippets",
+    })
+  end,
+},
+
+  {
+    "hrsh7th/nvim-cmp",
+    dependencies = {
+      "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-path",
+      "hrsh7th/cmp-nvim-lsp",
+      "saadparwaiz1/cmp_luasnip",
+      "L3MON4D3/LuaSnip",
+    },
+
+    config = function()
+      local cmp = require("cmp")
+      local luasnip = require("luasnip")
+
+      cmp.setup({
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end,
+        },
+
+        mapping = cmp.mapping.preset.insert({
+          ["<C-Space>"] = cmp.mapping.complete(),
+          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+        }),
+
+        sources = {
+          { name = "nvim_lsp" },
+          { name = "luasnip" },
+          { name = "buffer" },
+          { name = "path" },
+        },
+      })
+    end,
+  },
+
+  {
+  "neovim/nvim-lspconfig",
+  config = function()
+    vim.lsp.config('html', {})
+    vim.lsp.config('cssls', {})
+    vim.lsp.config('ts_ls', {})
+
+    vim.lsp.enable({
+      'html',
+      'cssls',
+      'ts_ls',
+    })
+  end,
+},
+})
+
+
+-- Opções globais
+vim.opt.termguicolors = true -- 👈 ADICIONADO: Habilita cores reais de 24 bits no terminal
+vim.opt.number = true
+vim.opt.relativenumber = true
+
+-- Atalhos de teclado
+vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>")
+vim.keymap.set("n", "<leader>ff", ":Telescope find_files<CR>")
+vim.keymap.set("n", "<C-p>", "<cmd>Telescope find_files<CR>", { desc = "Buscar arquivos" })
+vim.keymap.set("n", "<leader>fg", ":Telescope live_grep<CR>")
+vim.keymap.set("n", "<S-h>", ":BufferLineCyclePrev<CR>", { desc = "Aba anterior" })
+vim.keymap.set("n", "<S-l>", ":BufferLineCycleNext<CR>", { desc = "Próxima aba" })
+vim.keymap.set("i", "jk", "<Esc>")
+vim.keymap.set("t", "jk", [[<C-\><C-n>]], { desc = "Sair do terminal" })
+
+-- 1. Força o Neovim a ignorar as cores apagadas injetadas pelo Servidor LSP (Java jdtls)
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client then
+      client.server_capabilities.semanticTokensProvider = nil
+    end
+  end,
+})
+
+-- 2. Mapeia os elementos do Tree-sitter Java diretamente para os grupos vibrantes do Dracula
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "java",
+  callback = function()
+    -- Classes e Tipos Complexos (ex: DocumentFolderResource) -> Ciano / Verde Água (Dracula Cyan)
+    vim.api.nvim_set_hl(0, "@type.java", { link = "StorageClass" })
+    vim.api.nvim_set_hl(0, "@type.definition.java", { link = "StorageClass" })
+
+    -- Chamadas de Métodos (ex: .builder(), .authentication()) -> Verde Vivo (Dracula Green / Function)
+    vim.api.nvim_set_hl(0, "@function.method.call.java", { link = "Function" })
+    vim.api.nvim_set_hl(0, "@method.call.java", { link = "Function" })
+    
+    -- Anotações (ex: @Override ou @Autowired se houver) -> Rosa/Roxo (Dracula Pink)
+    vim.api.nvim_set_hl(0, "@attribute.java", { link = "PreProc" })
+
+    -- Variáveis e Atributos locais -> Azul Claro / Branco Vibrante (Dracula Orange/Light Blue)
+    vim.api.nvim_set_hl(0, "@variable.member.java", { link = "Identifier" })
+    vim.api.nvim_set_hl(0, "@property.java", { link = "Identifier" })
+  end,
+})
